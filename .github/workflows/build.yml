@@ -15,7 +15,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: 构建 WarpCursor.app
-        run: ./build_app.sh
+        run: 
+          chmod +x ./build_app.sh ./scripts/make_dmg.sh
+          ./build_app.sh
 
       - name: 打包 DMG
         run: ./scripts/make_dmg.sh
