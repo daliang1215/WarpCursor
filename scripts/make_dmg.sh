@@ -7,8 +7,19 @@ APP="build/WarpCursor.app"
 DIST="dist"
 DMG="$DIST/WarpCursor.dmg"
 
-[ -d "$APP" ] || { echo "先运行 ./build_app.sh"; exit 1; }
+if [ ! -d "$APP" ]; then
+  echo "错误：找不到 $APP，先运行 ./build_app.sh"
+  exit 1
+fi
+echo "App bundle 存在: $APP ($(du -sh "$APP" | cut -f1))"
+
 mkdir -p "$DIST"
 rm -f "$DMG"
-hdiutil create -volname "WarpCursor" -srcfolder "$APP" -ov -format UDZO "$DMG"
-echo "wrote $DMG"
+
+echo "正在创建 DMG（hdiutil）..."
+if hdiutil create -volname "WarpCursor" -srcfolder "$APP" -ov -format UDZO "$DMG"; then
+  echo "wrote $DMG ($(du -h "$DMG" | cut -f1))"
+else
+  echo "hdiutil 失败（退出码 $?），请查看上方 hdiutil 的具体报错"
+  exit 1
+fi
