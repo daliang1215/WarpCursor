@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Mac App Store 版启用 App Sandbox。沙盒下热键引擎自动降级为 Carbon（免权限）。 -->
+	<key>com.apple.security.app-sandbox</key>
+	<true/>
+</dict>
+</plist>
