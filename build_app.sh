@@ -35,7 +35,7 @@ echo "==> 组装 $APP_BUNDLE ..."
 # 图标缺失时自动生成（CI 环境不提交二进制图标）
 if [ ! -f "Resources/AppIcon.icns" ] || [ ! -f "Resources/MenuBarIcon.png" ]; then
   echo "    图标缺失，正在生成..."
-  python3 -c "import PIL" 2>/dev/null || python3 -m pip install --quiet pillow
+  python3 -c "import PIL" 2>/dev/null || python3 -m pip install --quiet --break-system-packages pillow
   python3 scripts/generate_icon.py
 fi
 rm -rf "$APP_BUNDLE"
