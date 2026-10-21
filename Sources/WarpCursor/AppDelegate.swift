@@ -42,26 +42,49 @@ final class AppDelegate: NSObject, NSApplicationDelegate, StatusMenuDelegate, Pr
         let store = Persistence.shared
         let displays = DisplayManager.activeDisplays()
         var bindings: [(combo: HotKeyCombo, action: () -> Void)] = []
+        // 同一组合只能注册一次：重复设置时保留先注册的，其余跳过并提示
+        var seen = Set<HotKeyCombo>()
+        var duplicates: [HotKeyCombo] = []
 
         for (index, display) in displays.enumerated() {
             guard let combo = store.combo(for: display, position: index), !combo.isEmpty else { continue }
+            if seen.contains(combo) { duplicates.append(combo); continue }
+            seen.insert(combo)
             bindings.append((combo, { [weak self] in self?.jump(to: display) }))
         }
 
         let next = store.nextDisplayCombo
         if !next.isEmpty {
-            bindings.append((next, { [weak self] in self?.stepDisplay(by: 1) }))
+            if seen.contains(next) {
+                duplicates.append(next)
+            } else {
+                seen.insert(next)
+                bindings.append((next, { [weak self] in self?.stepDisplay(by: 1) }))
+            }
         }
         let prev = store.previousDisplayCombo
         if !prev.isEmpty {
-            bindings.append((prev, { [weak self] in self?.stepDisplay(by: -1) }))
+            if seen.contains(prev) {
+                duplicates.append(prev)
+            } else {
+                seen.insert(prev)
+                bindings.append((prev, { [weak self] in self?.stepDisplay(by: -1) }))
+            }
         }
 
         let conflicts = hotKeys.apply(bindings: bindings)
+        var problems: [String] = []
         if !conflicts.isEmpty {
             let names = conflicts.map { KeyCodeNames.displayString(for: $0) }.joined(separator: "、")
+            problems.append("以下快捷键已被其它程序占用，未生效：\(names)")
+        }
+        if !duplicates.isEmpty {
+            let names = duplicates.map { KeyCodeNames.displayString(for: $0) }.joined(separator: "、")
+            problems.append("以下快捷键在 WarpCursor 内重复设置，只保留了先注册的一个：\(names)")
+        }
+        if !problems.isEmpty {
             showAlert(title: "快捷键冲突",
-                      message: "以下快捷键已被其它程序占用，未生效：\(names)\n\n请在偏好设置中更换。")
+                      message: problems.joined(separator: "\n\n") + "\n\n请在偏好设置中更换。")
         }
     }
 
@@ -74,7 +97,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, StatusMenuDelegate, Pr
 
     private func stepDisplay(by delta: Int) {
         let displays = DisplayManager.activeDisplays()
-        guard !displays.isEmpty else { return }
+        // 只有一块屏时无处切换：直接忽略。否则 (0±1)%1 仍指向当前屏，
+        // 光标会被拽回屏幕中心，看起来像误触发了“跳到显示器 1”。
+        guard displays.count > 1 else { return }
         let point = CGEvent(source: nil)?.location ?? displays[0].center
         let current = displays.firstIndex(where: { $0.bounds.contains(point) }) ?? 0
         let next = (current + delta + displays.count) % displays.count

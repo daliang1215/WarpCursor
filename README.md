@@ -84,6 +84,60 @@ swift run WarpCursor --list              # 列出显示器
 ad-hoc 签名每次构建身份都会变化，直接用 `SMAppService` 会在系统里留下
 无法清理的残留登录项，所以免费版不走那条路。
 
+## 分发（三条路线）
+
+| 路线 | 签名 | 适合 |
+|---|---|---|
+| GitHub Releases（免费） | Developer ID + 公证 | 公开发布，`scripts/notarize.sh` 一键签名公证 |
+| Mac App Store（付费） | Apple Distribution | 上架销售，见下文 |
+| 自己用 | ad-hoc（`./build_app.sh` 默认） | Gatekeeper 会提示，右键 → 打开即可 |
+
+### 路线一：GitHub 自动编译发布（无需本地环境）
+
+仓库已配好 GitHub Actions（`.github/workflows/build.yml`）：
+
+- 每次 push / PR 自动编译 + 打 DMG（`macos-15`，纯 arm64）
+- 打 tag 推送（如 `git tag v1.0.0 && git push origin v1.0.0`）后，DMG 自动发布到 GitHub Releases
+
+DMG 带安装界面：挂载后显示 App 的卷图标，窗口里 WarpCursor 与
+Applications 快捷方式并排，拖到 Applications 上即可安装
+（背景图由 `scripts/generate_dmg_background.py` 生成，
+布局由 dmgbuild 直接写入，不依赖 Finder 自动化权限）。
+
+```sh
+git init && git add -A && git commit -m "WarpCursor v1.0.0"
+git remote add origin git@github.com:daliang1215/WarpCursor.git
+git push -u origin main
+git tag v1.0.0 && git push origin v1.0.0   # 触发 Release
+```
+
+去掉 Gatekeeper 拦截（发给别人用时建议）：需要 Apple Developer Program，
+设置好环境变量后运行 `./scripts/notarize.sh`（Developer ID 签名 + 公证 + 装订）。
+所需变量：`APPLE_TEAM_ID`、`SIGNING_IDENTITY`、`NOTARY_APPLE_ID`、
+`NOTARY_APP_PASSWORD`、`NOTARY_TEAM_ID`。
+
+### 路线二：上架 Mac App Store（付费应用）
+
+已验证可行：`CGWarpMouseCursorPosition` 与 Carbon `RegisterEventHotKey`
+都是沙盒兼容的公开 API，无需任何特殊权限。App Store 版会自动：
+
+- 启用 App Sandbox（`Resources/WarpCursor.entitlements`）
+- 热键引擎锁定为 Carbon（事件监听引擎在沙盒下不可用，已自动禁用）
+- 已知限制：macOS 15+ 沙盒下，只用 Option/Option+Shift 做修饰键的
+  全局热键不会触发（Apple bug FB15168205），偏好设置里有提示
+
+步骤（需要 Apple Developer Program，$99/年）：
+
+1. `python3 scripts/generate_xcodeproj.py` 生成 `WarpCursor.xcodeproj`
+   （已生成好并提交在仓库里，增删源文件后可重新生成）
+2. 用 Xcode 打开，在 Signing & Capabilities 里选择你的 Team，
+   Bundle ID 改成你自己的反向域名（如 `com.你的名字.warpcursor`）
+3. Product → Archive → Distribute App → App Store Connect
+4. 在 App Store Connect 新建 App 记录，填写介绍、截图、定价（付费选价格档），提交审核
+
+注意：App Store 版与 GitHub 免费版建议用**不同的 Bundle ID**，
+避免已安装用户的偏好设置串扰。
+
 ## 项目结构
 
 ```
@@ -110,8 +164,10 @@ Resources/
 WarpCursor.xcodeproj/           # Xcode 工程（App Store 打包用，可重新生成）
 scripts/
   generate_icon.py              # 生成 AppIcon.icns / MenuBarIcon.png
+  generate_dmg_background.py    # 生成 DMG 背景图 dmg-background.png
+  dmg_settings.py               # dmgbuild 配置（DMG 布局）
   generate_xcodeproj.py         # 重新生成 WarpCursor.xcodeproj
-  make_dmg.sh                   # 打 DMG（CI 用）
+  make_dmg.sh                   # 打 DMG（dmgbuild 优先，hdiutil 备选）
   notarize.sh                   # Developer ID 签名 + 公证（GitHub 分发用）
 .github/workflows/build.yml    # CI：自动编译 + 打 tag 自动发 Release
 build_app.sh                    # 一键构建 + 组装 .app + 签名
