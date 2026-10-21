@@ -14,8 +14,7 @@
 
 ## 🎬 视频介绍
 
-<!-- 上传视频后把下面这行替换为 GitHub 生成的视频链接（把 MP4 拖进网页编辑器即可） -->
-https://github.com/user-attachments/assets/REPLACE_WITH_VIDEO_URL
+https://github.com/user-attachments/assets/170e1624-588e-4870-9d1e-556a945b4847
 
 *40 秒概念演示：核心功能与特性亮点，中英双语字幕。*
 
